@@ -1,11 +1,12 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header, Query
+from fastapi.responses import FileResponse, Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 import aiomysql
 import os
 import logging
 import json
+import httpx
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
@@ -871,6 +872,20 @@ async def download_project():
         raise HTTPException(status_code=404, detail="الملف غير موجود")
     return FileResponse(file_path, filename="pos-system.zip", media_type="application/zip")
 
+# ============ IMAGE PROXY ============
+
+@api_router.get("/proxy-image")
+async def proxy_image(url: str = Query(...)):
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                content_type = resp.headers.get("content-type", "image/png")
+                return Response(content=resp.content, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
+        raise HTTPException(status_code=404, detail="Image not found")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to fetch image")
+
 # ============ ROOT ============
 
 @api_router.get("/")
@@ -895,3 +910,10 @@ async def shutdown():
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+@app.get("/api/download/frontend")
+async def download_frontend():
+    file_path = "/app/frontend-build.zip"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="الملف غير موجود")
+    return FileResponse(file_path, filename="frontend-build.zip", media_type="application/zip")
