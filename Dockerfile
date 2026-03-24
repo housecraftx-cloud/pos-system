@@ -1,6 +1,5 @@
 FROM python:3.11-slim
 WORKDIR /app
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install fastapi uvicorn python-dotenv aiomysql cryptography PyMySQL pydantic PyJWT
 COPY backend/ .
 CMD uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080}
